@@ -183,7 +183,7 @@ tokenizeOperator op cs = Token (operatorType op) op : tokenize cs
     operatorType _ = error "unexpected operator"
 
 tokenizeNumber :: String -> [Token]
-tokenizeNumber str = case runParser numeric str of
+tokenizeNumber str = case runParser getNumeric str of
     Right (rest, num) -> Token T_TNumber num : tokenize rest
     Left err -> error $ "unexpected character: " ++ err
 

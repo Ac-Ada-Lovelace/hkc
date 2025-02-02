@@ -46,5 +46,12 @@ tokenizeKeywordTest = do
     print "hello"
     print res
 
+tokenizeFileTest :: IO ()
+tokenizeFileTest = do
+    let path = "test/test.txt"
+    source <- readFile path
+    let res = tokenize source
+    print res
+
 main :: IO ()
-main = tokenizeKeywordTest
+main = tokenizeFileTest
