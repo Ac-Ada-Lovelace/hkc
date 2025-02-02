@@ -1,4 +1,3 @@
-
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use lambda-case" #-}
@@ -20,7 +19,8 @@ import Source(Source, readChar, closeSource)
 import GHC.Base (Alternative (..))
 import Prelude hiding (map)
 import GHC.Unicode (isAlpha, isAlphaNum)
-import AST (Token, TokenType(..), OperatorType(..), KeywordType(..), Token(..))
+import AST (Token, TokenType(..), OperatorType(..), Token(..),
+                keywords,operators, keyWordTypeFromString)
 
 -- 定义解析器类型
 newtype Parser a = Parser {runParser :: String -> Either String (String, a)}
@@ -79,7 +79,7 @@ zeroOrMore :: Parser a -> Parser [a]
 zeroOrMore = many
 
 oneOrMore :: Parser a -> Parser [a]
-oneOrMore = some
+oneOrMore  = some
 
 predicate ::Parser a -> (a -> Bool) -> Parser a
 predicate (Parser p) f = Parser $ \input -> case p input of
@@ -133,31 +133,66 @@ getNumeric = do
 
 
 
-
 tokenize :: String -> [Token]
-tokenize str = case str of
-    [] -> []
-    (c:cs) -> case c of
-        ' ' -> tokenize cs
-        '\t' -> tokenize cs
-        '\n' -> tokenize cs
-        '\r' -> tokenize cs
-        '+' -> Token (Operator Plus) [c] : tokenize cs
-        '-' -> Token (Operator Minus) [c] : tokenize cs
-        '*' -> Token (Operator Multiply) [c] : tokenize cs
-        '/' -> Token (Operator Divide) [c] : tokenize cs
-        '%' -> Token (Operator Mod) [c] : tokenize cs
-        '=' -> Token (Operator Assign) [c] : tokenize cs
-        ';' -> Token SemiColon [c] : tokenize cs
-        _   | c `elem` ['0'..'9'] -> case runParser numeric str of
-                            Right (rest, num) -> Token TNumber num : tokenize rest
-                            Left err -> error $ "unexpected character: " ++ err  
-            | isAlpha c || c=='_' -> case runParser identifier str of
-                            Right (rest, iden) -> Token Identifier iden : tokenize rest
-                            Left err -> error $ "unexpected character: " ++ err
+tokenize [] = []
+tokenize (c:cs)
+    | isSpace c = tokenize cs
+    | isOperatorStarts (c:take 1 cs) = tokenizeOperator (c:take 1 cs) (drop 1 cs)
+    | isOperatorStarts [c] = tokenizeOperator [c] cs
+    | Parser.isDigit c = tokenizeNumber (c:cs)
+    | isAlpha c || c == '_' = tokenizeIdentifier (c:cs)
+    | otherwise = error "unexpected character"
 
-            | otherwise -> error "unexpected character"
-        
+isSpace :: Char -> Bool
+isSpace c = c `elem` [' ', '\t', '\n', '\r']
+
+isOperatorStarts :: String -> Bool
+isOperatorStarts op = op `elem` operators
+
+isDigit :: Char -> Bool
+isDigit c = c `elem` ['0'..'9']
+
+tokenizeOperator :: String -> String -> [Token]
+tokenizeOperator op cs = Token (operatorType op) op : tokenize cs
+  where
+    operatorType "+" = T_Operator T_Add
+    operatorType "-" = T_Operator T_Sub
+    operatorType "*" = T_Operator T_Multiply
+    operatorType "/" = T_Operator T_Divide
+    operatorType "%" = T_Operator T_Mod
+    operatorType "=" = T_Operator T_Assign
+    operatorType "+=" = T_Operator T_AddAssign
+    operatorType "-=" = T_Operator T_SubAssign
+    operatorType "*=" = T_Operator T_MulAssign
+    operatorType "/=" = T_Operator T_DivAssign
+    operatorType "==" = T_Operator T_Equal
+    operatorType "!=" = T_Operator T_NotEqual
+    operatorType "<" = T_Operator T_Less
+    operatorType ">" = T_Operator T_Greater
+    operatorType "<=" = T_Operator T_LessEqual
+    operatorType ">=" = T_Operator T_GreaterEqual
+    operatorType "&&" = T_Operator T_LogicalAnd
+    operatorType "||" = T_Operator T_LogicalOr
+    operatorType "&" = T_Operator T_BitAnd
+    operatorType "|" = T_Operator T_BitOr
+    operatorType "^" = T_Operator T_BitXor
+    operatorType "~" = T_Operator T_BitNot
+    operatorType "<<" = T_Operator T_LeftShift
+    operatorType ">>" = T_Operator T_RightShift
+    operatorType "!" = T_Operator T_LogicalNot
+    operatorType _ = error "unexpected operator"
+
+tokenizeNumber :: String -> [Token]
+tokenizeNumber str = case runParser numeric str of
+    Right (rest, num) -> Token T_TNumber num : tokenize rest
+    Left err -> error $ "unexpected character: " ++ err
+
+tokenizeIdentifier :: String -> [Token]
+tokenizeIdentifier str = case runParser identifier str of
+    Right (rest, iden) -> case iden of
+        _ | iden `elem` keywords -> Token (T_Keyword $ keyWordTypeFromString iden) iden : tokenize rest
+          | otherwise -> Token T_Identifier iden : tokenize rest
+    Left err -> error $ "unexpected character: " ++ err
 
 startParsing :: Source -> IO ()
 startParsing source = do

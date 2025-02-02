@@ -1,5 +1,6 @@
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 import Parser(Parser, left,runParser,ppair,  getNumeric, identifier,tokenize)
 
@@ -22,8 +23,8 @@ basicTest = do
             let resId = runParser identifier rest
             case resId of
                 Left err -> print err
-                Right (rest', id) -> do
-                    print id
+                Right (_, ident) -> do
+                    print ident
 
 pairBasicTest :: IO()
 pairBasicTest = do
@@ -37,5 +38,13 @@ tokenizeTest = do
     let res = tokenize str
     print res
 
+tokenizeKeywordTest :: IO()
+tokenizeKeywordTest = do
+    let str = "if else while for"
+    let res = tokenize str
+    print res
+    print "hello"
+    print res
+
 main :: IO ()
-main = tokenizeTest
+main = tokenizeKeywordTest

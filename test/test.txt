@@ -1,1 +1,8 @@
-abcdddddd
+if a == 1
+print 123
+else a > 2
+print 321
+
+while a < 10
+print 3333
+a = a + 1
